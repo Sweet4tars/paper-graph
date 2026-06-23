@@ -2,6 +2,8 @@
 
 > 输入一篇论文 → 递归检索引用与被引 → 生成交互式力导向图谱
 
+![Paper Graph 示例:ResNet 引用图谱 (depth=2, 50节点)](docs/screenshot.png)
+
 基于 **OpenAlex API** 构建,完全免费、无需 API key。前端采用 **Cytoscape.js + fCoSE 布局**,资源本地化,**离线可用**(首次运行需联网检索论文,生成的 HTML 打开无需联网)。
 
 ---
