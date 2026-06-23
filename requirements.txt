@@ -1,0 +1,6 @@
+# 依赖
+# 本工具仅使用 Python 标准库,无需 pip install 任何包。
+# 要求 Python 3.8+
+
+# 运行
+# python paper_graph.py --seed 1512.03385 --depth 2

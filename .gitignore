@@ -1,0 +1,21 @@
+# Python
+__pycache__/
+*.py[cod]
+
+# 性能调试产物(开发用,不入库)
+perf_*
+_chk.js
+
+# Node(仅本地性能测试时安装)
+node_modules/
+
+# 运行时生成的图谱(示例 example_* 已入库;个人运行结果不入库)
+paper_graph.html
+paper_graph.json
+
+# 系统/编辑器
+.DS_Store
+Thumbs.db
+*.swp
+.idea/
+.vscode/

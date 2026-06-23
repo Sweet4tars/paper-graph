@@ -1,0 +1,299 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Paper Graph · Deep Residual Learning for Image Recogni</title>
+<script src="vendor/tailwind.js"></script>
+<script src="vendor/cytoscape.min.js"></script>
+<script src="vendor/layout-base.js"></script>
+<script>if(window.layoutBase&&!window['layout-base']){window['layout-base']=window.layoutBase;}</script>
+<script src="vendor/cose-base.js"></script>
+<script src="vendor/cytoscape-fcose.js"></script>
+<style>
+  :root {
+    --bg-base: #f8fafc; --bg-elev: #ffffff; --bg-soft: #f1f5f9;
+    --border: #e2e8f0; --border-strong: #cbd5e1;
+    --text-primary: #0f172a; --text-secondary: #475569; --text-muted: #94a3b8;
+    --accent-1: #2563eb; --accent-2: #7c3aed; --accent-3: #db2777;
+    --accent-cyan: #0891b2; --accent-amber: #d97706; --accent-green: #059669;
+  }
+  *{margin:0;padding:0;box-sizing:border-box}
+  html,body{height:100%;overflow:hidden}
+  body{font-family:'Inter','Segoe UI',-apple-system,BlinkMacSystemFont,Roboto,'Helvetica Neue',Arial,sans-serif;background:var(--bg-base);color:var(--text-primary)}
+  .bg-deco{position:fixed;inset:0;z-index:0;pointer-events:none;background:radial-gradient(ellipse 50% 35% at 15% 0%,rgba(37,99,235,0.08),transparent 60%),radial-gradient(ellipse 45% 40% at 100% 100%,rgba(124,58,237,0.07),transparent 60%)}
+  .bg-grid{position:fixed;inset:0;z-index:0;pointer-events:none;opacity:0.5;background-image:linear-gradient(rgba(15,23,42,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(15,23,42,0.03) 1px,transparent 1px);background-size:48px 48px;mask-image:radial-gradient(ellipse at center,black 30%,transparent 85%)}
+  .glass{background:rgba(255,255,255,0.78);backdrop-filter:blur(18px) saturate(180%);-webkit-backdrop-filter:blur(18px) saturate(180%);border:1px solid var(--border);box-shadow:0 1px 3px rgba(15,23,42,0.04),0 8px 24px rgba(15,23,42,0.04)}
+  .gradient-text{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent}
+  .shimmer{background:linear-gradient(90deg,transparent,rgba(37,99,235,0.5),transparent);background-size:200% 100%;animation:shimmer 1.6s infinite}
+  @keyframes shimmer{0%{background-position:200% 0}100%{background-position:-200% 0}}
+  .beam-border{position:relative;overflow:hidden}
+  .beam-border::after{content:'';position:absolute;top:0;left:-100%;width:50%;height:2px;background:linear-gradient(90deg,transparent,var(--accent-1),var(--accent-3),transparent);animation:beam 3s linear infinite}
+  @keyframes beam{0%{left:-50%}100%{left:100%}}
+  .btn{display:inline-flex;align-items:center;gap:6px;padding:7px 13px;border-radius:8px;font-size:12.5px;font-weight:500;background:#fff;border:1px solid var(--border);color:var(--text-secondary);cursor:pointer;transition:all 0.18s;font-family:inherit;box-shadow:0 1px 2px rgba(15,23,42,0.03)}
+  .btn:hover{background:var(--bg-soft);border-color:var(--accent-1);color:var(--accent-1);transform:translateY(-1px);box-shadow:0 2px 6px rgba(37,99,235,0.1)}
+  .btn:active{transform:translateY(0)}
+  .btn-primary{background:linear-gradient(135deg,var(--accent-1),var(--accent-2));border:none;color:#fff;box-shadow:0 2px 8px rgba(37,99,235,0.25)}
+  .btn-primary:hover{box-shadow:0 4px 16px rgba(37,99,235,0.35);color:#fff}
+  .chip{display:inline-flex;align-items:center;gap:5px;padding:3px 10px;border-radius:16px;font-size:11.5px;font-weight:500;background:#fff;border:1px solid var(--border);font-family:'JetBrains Mono',monospace;box-shadow:0 1px 2px rgba(15,23,42,0.03)}
+  .chip .val{color:var(--accent-1);font-weight:600}
+  .chip .lbl{color:var(--text-muted)}
+  #cy{width:100%;height:100%;position:absolute;inset:0}
+  .cy-tooltip{position:absolute;z-index:50;max-width:280px;padding:10px 13px;background:#fff;border:1px solid var(--border-strong);border-radius:10px;font-size:12px;color:var(--text-primary);pointer-events:none;box-shadow:0 8px 24px rgba(15,23,42,0.12);display:none}
+  #detail-panel{position:fixed;top:72px;right:16px;bottom:16px;width:380px;z-index:40;border-radius:16px;padding:24px;overflow-y:auto;transform:translateX(420px);opacity:0;transition:transform 0.4s cubic-bezier(0.16,1,0.3,1),opacity 0.3s}
+  #detail-panel.open{transform:translateX(0);opacity:1}
+  #detail-panel::-webkit-scrollbar{width:6px}
+  #detail-panel::-webkit-scrollbar-thumb{background:var(--border-strong);border-radius:3px}
+  .detail-badge{display:inline-block;padding:3px 10px;border-radius:6px;font-size:10.5px;font-weight:600;letter-spacing:0.4px;font-family:'JetBrains Mono',monospace}
+  .level-badge{display:inline-block;padding:4px 11px;border-radius:7px;font-size:11.5px;font-weight:600;font-family:'JetBrains Mono',monospace;margin-top:4px}
+  #legend{position:fixed;bottom:16px;left:16px;z-index:30;border-radius:14px;padding:14px 18px}
+  .legend-row{display:flex;align-items:center;gap:10px;margin:5px 0;font-size:12px;color:var(--text-secondary)}
+  .legend-node{width:14px;height:14px;border-radius:50%;border:2px solid}
+  .legend-line{width:26px;height:2px;border-radius:1px}
+  #loader{position:fixed;inset:0;z-index:100;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:16px;background:var(--bg-base);transition:opacity 0.5s}
+  .loader-ring{width:52px;height:52px;border-radius:50%;border:3px solid rgba(37,99,235,0.15);border-top-color:var(--accent-1);border-right-color:var(--accent-3);animation:spin 0.9s linear infinite}
+  @keyframes spin{to{transform:rotate(360deg)}}
+  .search-box{display:flex;align-items:center;gap:8px;padding:6px 12px;border-radius:10px;min-width:220px;background:#fff;border:1px solid var(--border);transition:all 0.18s;box-shadow:0 1px 2px rgba(15,23,42,0.03)}
+  .search-box:focus-within{border-color:var(--accent-1);box-shadow:0 0 0 3px rgba(37,99,235,0.12)}
+  .search-box input{background:transparent;border:none;outline:none;color:var(--text-primary);font-size:13px;width:100%;font-family:inherit}
+  .search-box input::placeholder{color:var(--text-muted)}
+  .fade-in{animation:fadeIn 0.6s ease-out}
+  @keyframes fadeIn{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+</style>
+</head>
+<body>
+<div class="bg-deco"></div>
+<div class="bg-grid"></div>
+
+<div id="loader">
+  <div class="loader-ring"></div>
+  <div class="text-sm" style="color:var(--text-secondary);font-family:'JetBrains Mono',monospace">
+    <span class="gradient-text font-semibold">Paper Graph</span> 引擎初始化中…
+  </div>
+  <div class="w-48 h-1 rounded-full overflow-hidden" style="background:var(--bg-soft)">
+    <div class="shimmer h-full w-full"></div>
+  </div>
+</div>
+
+<header class="glass beam-border fixed top-3 left-3 right-3 z-40 rounded-2xl px-5 py-3 flex items-center gap-4 fade-in" style="animation-delay:0.1s">
+  <div class="flex items-center gap-3">
+    <div class="w-9 h-9 rounded-xl flex items-center justify-center" style="background:linear-gradient(135deg,var(--accent-1),var(--accent-2));box-shadow:0 4px 14px rgba(37,99,235,0.3)">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><circle cx="6" cy="6" r="2.5"/><circle cx="18" cy="6" r="2.5"/><circle cx="12" cy="18" r="2.5"/><line x1="7.5" y1="7" x2="10.8" y2="16"/><line x1="16.5" y1="7" x2="13.2" y2="16"/><line x1="8.5" y1="6" x2="15.5" y2="6"/></svg>
+    </div>
+    <div>
+      <div class="text-[15px] font-bold leading-tight gradient-text">Paper Graph</div>
+      <div class="text-[10.5px] leading-tight" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace">citation network explorer</div>
+    </div>
+  </div>
+  <div class="h-8 w-px" style="background:var(--border)"></div>
+  <div class="hidden md:flex items-center gap-2">
+    <span class="chip"><span class="lbl">seed</span><span class="val" id="h-seed">—</span></span>
+    <span class="chip"><span class="lbl">nodes</span><span class="val" id="h-nodes">—</span></span>
+    <span class="chip"><span class="lbl">edges</span><span class="val" id="h-edges">—</span></span>
+    <span class="chip"><span class="lbl">depth</span><span class="val" id="h-depth">—</span></span>
+    <span class="chip"><span class="lbl">source</span><span class="val">OpenAlex</span></span>
+  </div>
+  <div class="ml-auto flex items-center gap-2">
+    <div class="search-box hidden lg:flex">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><circle cx="11" cy="11" r="7"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+      <input id="search-input" placeholder="搜索论文标题…"/>
+    </div>
+    <button class="btn" onclick="cyFit()" title="适应屏幕"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 8V5a2 2 0 0 1 2-2h3M21 8V5a2 2 0 0 0-2-2h-3M3 16v3a2 2 0 0 0 2 2h3M21 16v3a2 2 0 0 1-2 2h-3"/></svg></button>
+    <button class="btn" id="btn-physics" onclick="togglePhysics()" title="物理引擎"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 1v6M12 17v6M4.22 4.22l4.24 4.24M15.54 15.54l4.24 4.24M1 12h6M17 12h6M4.22 19.78l4.24-4.24M15.54 8.46l4.24-4.24"/></svg></button>
+    <button class="btn btn-primary" onclick="exportJSON()"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>导出</button>
+  </div>
+</header>
+
+<main style="position:absolute;top:76px;left:12px;right:12px;bottom:12px">
+  <div id="cy"></div>
+  <div class="cy-tooltip" id="tooltip"></div>
+</main>
+
+<aside id="legend" class="glass fade-in" style="animation-delay:0.3s">
+  <div class="text-[11px] font-semibold mb-2 uppercase tracking-wider" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace">Legend</div>
+  <div class="legend-row"><div class="legend-node" style="background:#fbbf24;border-color:#d97706;box-shadow:0 0 8px rgba(251,191,36,0.4)"></div>种子论文</div>
+  <div class="legend-row" style="align-items:center;gap:8px">
+    <div style="display:flex;gap:3px">
+      <div class="legend-node" style="background:#dbeafe;border-color:#93c5fd;width:11px;height:11px"></div>
+      <div class="legend-node" style="background:#60a5fa;border-color:#3b82f6;width:11px;height:11px"></div>
+      <div class="legend-node" style="background:#1e40af;border-color:#1e3a8a;width:11px;height:11px"></div>
+    </div>
+    <span>距2026年:远(浅) → 近(深)</span>
+  </div>
+  <div class="legend-row"><div class="legend-line" style="background:#64748b"></div>引用关系(箭头指向被引论文)</div>
+</aside>
+
+<aside id="detail-panel" class="glass">
+  <button onclick="closeDetail()" class="absolute top-4 right-4 w-7 h-7 rounded-lg flex items-center justify-center transition" style="color:var(--text-muted);background:var(--bg-soft)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></button>
+  <div id="d-badge" class="mb-3"></div>
+  <h2 id="d-title" class="text-[16px] font-semibold leading-snug mb-3" style="color:var(--text-primary)"></h2>
+  <div class="space-y-2 mb-3" style="font-size:12.5px">
+    <div class="flex items-center gap-2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><rect x="3" y="4" width="18" height="18" rx="2"/><line x1="16" y1="2" x2="16" y2="6"/><line x1="8" y1="2" x2="8" y2="6"/><line x1="3" y1="10" x2="21" y2="10"/></svg><span style="color:var(--text-secondary)">年份</span><span id="d-year" class="font-mono font-semibold" style="color:var(--accent-1)"></span></div>
+    <div class="flex items-center gap-2" id="d-venue-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><path d="M4 19.5A2.5 2.5 0 0 1 6.5 17H20"/><path d="M6.5 2H20v20H6.5A2.5 2.5 0 0 1 4 19.5v-15A2.5 2.5 0 0 1 6.5 2z"/></svg><span style="color:var(--text-secondary)">来源</span><span id="d-venue" style="color:var(--text-primary)"></span></div>
+    <div class="flex items-center gap-2" id="d-level-row"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted)"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg><span style="color:var(--text-secondary)">等级</span><span id="d-level"></span></div>
+    <div class="flex items-start gap-2"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--text-muted);margin-top:2px"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg><span style="color:var(--text-secondary);min-width:32px">作者</span><span id="d-authors" style="color:var(--text-primary)"></span></div>
+    <div class="flex items-center gap-4 pt-2 border-t" style="border-color:var(--border)">
+      <div class="flex items-center gap-1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent-3)"><path d="M14 9V5a3 3 0 0 0-3-3l-4 9v11h11.28a2 2 0 0 0 2-1.7l1.38-9a2 2 0 0 0-2-2.3zM7 22H4a2 2 0 0 1-2-2v-7a2 2 0 0 1 2-2h3"/></svg><span class="font-mono font-semibold" id="d-cited" style="color:var(--accent-3)"></span><span style="color:var(--text-muted);font-size:11px">被引</span></div>
+      <div class="flex items-center gap-1.5"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="color:var(--accent-cyan)"><path d="M10 15v4a3 3 0 0 0 3 3l4-9V2H5.72a2 2 0 0 0-2 1.7l-1.38 9a2 2 0 0 0 2 2.3zm7-13h2.67A2.31 2.31 0 0 1 22 4v7a2.31 2.31 0 0 1-2.33 2H17"/></svg><span class="font-mono font-semibold" id="d-refs" style="color:var(--accent-cyan)"></span><span style="color:var(--text-muted);font-size:11px">引用</span></div>
+    </div>
+  </div>
+  <div class="mb-4"><div class="text-[11px] font-semibold mb-1.5 uppercase tracking-wider" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace">摘要</div><p id="d-abstract" class="text-[12.5px] leading-relaxed" style="color:var(--text-secondary)"></p></div>
+  <div id="d-links" class="flex flex-wrap gap-2"></div>
+  <div class="mt-5 pt-4 border-t" style="border-color:var(--border)"><div class="text-[11px] font-semibold mb-2 uppercase tracking-wider" style="color:var(--text-muted);font-family:'JetBrains Mono',monospace">图谱中的连接</div><div id="d-connections" class="space-y-1.5 text-[12px]"></div></div>
+</aside>
+
+<script>
+const GRAPH_DATA = {"stats": {"seed_title": "Deep Residual Learning for Image Recognition", "seed_id": "https://openalex.org/W2949650786", "total_nodes": 11, "total_edges": 10, "max_depth_reached": 1, "api_calls": 3, "data_source": "OpenAlex"}, "nodes": {"https://openalex.org/W2949650786": {"id": "https://openalex.org/W2949650786", "title": "Deep Residual Learning for Image Recognition", "year": 2015, "citationCount": 4718, "referenceCount": 50, "authors": "Kaiming He, Xiangyu Zhang, Shaoqing Ren, Jian Sun", "arxivId": "1512.03385", "doi": "10.48550/arxiv.1512.03385", "abstract": "Deeper neural networks are more difficult to train. We present a residual learning framework to ease the training of networks that are substantially deeper than those used previously. We explicitly reformulate the layers as learning residual functions with reference to the layer inputs, instead of l", "isSeed": true, "depth": 0, "venue": "arXiv (Cornell University)", "venueLevel": "预印本 · 未正式发表"}, "https://openalex.org/W1536680647": {"id": "https://openalex.org/W1536680647", "title": "Fast R-CNN", "year": 2015, "citationCount": 27881, "referenceCount": 40, "authors": "Ross Girshick", "arxivId": "", "doi": "10.1109/iccv.2015.169", "abstract": "This paper proposes a Fast Region-based Convolutional Network method (Fast R-CNN) for object detection. Fast R-CNN builds on previous work to efficiently classify object proposals using deep convolutional networks. Compared to previous work, Fast R-CNN employs several innovations to improve training", "isSeed": false, "depth": 1, "venue": "", "venueLevel": ""}, "https://openalex.org/W1554663460": {"id": "https://openalex.org/W1554663460", "title": "Neural networks for pattern recognition", "year": 1994, "citationCount": 18728, "referenceCount": 0, "authors": "Bishop, Christopher M. 1959-", "arxivId": "", "doi": "10.5860/choice.31-5500", "abstract": "From the Publisher:\r\nThis is the first comprehensive treatment of feed-forward neural networks from the perspective of statistical pattern recognition. After introducing the basic concepts, the book examines techniques for modelling probability density functions and the properties and merits of the ", "isSeed": false, "depth": 1, "venue": "Choice Reviews Online", "venueLevel": "未收录 · 未知等级"}, "https://openalex.org/W1665214252": {"id": "https://openalex.org/W1665214252", "title": "Rectified Linear Units Improve Restricted Boltzmann Machines", "year": 2010, "citationCount": 13244, "referenceCount": 21, "authors": "Vinod Nair, Geoffrey E. Hinton", "arxivId": "", "doi": "", "abstract": "Restricted Boltzmann machines were developed using binary stochastic hidden units. These can be generalized by replacing each binary unit by an infinite number of copies that all have the same weights but have progressively more negative biases. The learning and inference rules for these Stepped Sig", "isSeed": false, "depth": 1, "venue": "International Conference on Machine Learning", "venueLevel": "未收录 · 未知等级"}, "https://openalex.org/W1533861849": {"id": "https://openalex.org/W1533861849", "title": "Understanding the difficulty of training deep feedforward neural networks", "year": 2010, "citationCount": 12692, "referenceCount": 17, "authors": "Xavier Glorot, Yoshua Bengio", "arxivId": "", "doi": "", "abstract": "Whereas before 2006 it appears that deep multilayer neural networks were not successfully trained, since then several algorithms have been shown to successfully train them, with experimental results showing the superiority of deeper vs less deep architectures. All these experimental results were obt", "isSeed": false, "depth": 1, "venue": "", "venueLevel": ""}, "https://openalex.org/W1530872699": {"id": "https://openalex.org/W1530872699", "title": "A multigrid tutorial", "year": 1987, "citationCount": 1884, "referenceCount": 0, "authors": "William L. Briggs", "arxivId": "", "doi": "10.1137/1.9780898719505", "abstract": "Preface 1. Model problems 2. Basic iterative methods 3. Elements of multigrid 4. Implementation 5. Some theory 6. Nonlinear problems 7. Selected applications 8. Algebraic multigrid (AMG) 9. Multilevel adaptive methods 10. Finite elements Bibliography Index.", "isSeed": false, "depth": 1, "venue": "", "venueLevel": ""}, "https://openalex.org/W2592929672": {"id": "https://openalex.org/W2592929672", "title": "A survey on deep learning in medical image analysis", "year": 2017, "citationCount": 14312, "referenceCount": 578, "authors": "Geert Litjens, Thijs Kooi, Babak Ehteshami Bejnordi, Arnaud A. A. Setio et al.", "arxivId": "", "doi": "10.1016/j.media.2017.07.005", "abstract": "", "isSeed": false, "depth": 1, "venue": "Medical Image Analysis", "venueLevel": "未收录 · 未知等级"}, "https://openalex.org/W2953384591": {"id": "https://openalex.org/W2953384591", "title": "TensorFlow: A system for large-scale machine learning", "year": 2016, "citationCount": 8824, "referenceCount": 56, "authors": "Martı́n Abadi, Paul Barham, Jianmin Chen, Zhifeng Chen et al.", "arxivId": "1605.08695", "doi": "10.48550/arxiv.1605.08695", "abstract": "TensorFlow is a machine learning system that operates at large scale and in heterogeneous environments. TensorFlow uses dataflow graphs to represent computation, shared state, and the operations that mutate that state. It maps the nodes of a dataflow graph across many machines in a cluster, and with", "isSeed": false, "depth": 1, "venue": "arXiv (Cornell University)", "venueLevel": "预印本 · 未正式发表"}, "https://openalex.org/W2279098554": {"id": "https://openalex.org/W2279098554", "title": "SqueezeNet: AlexNet-level accuracy with 50x fewer parameters and <0.5MB model size", "year": 2016, "citationCount": 5925, "referenceCount": 40, "authors": "Forrest Iandola, Song Han, Matthew W. Moskewicz, Khalid Ashraf et al.", "arxivId": "", "doi": "", "abstract": "Recent research on deep neural networks has focused primarily on improving accuracy. For a given accuracy level, it is typically possible to identify multiple DNN architectures that achieve that accuracy level. With equivalent accuracy, smaller DNN architectures offer at least three advantages: (1) ", "isSeed": false, "depth": 1, "venue": "arXiv (Cornell University)", "venueLevel": "预印本 · 未正式发表"}, "https://openalex.org/W2796347433": {"id": "https://openalex.org/W2796347433", "title": "YOLOv3: An Incremental Improvement", "year": 2018, "citationCount": 5887, "referenceCount": 11, "authors": "Joseph Redmon, Ali Farhadi", "arxivId": "1804.02767", "doi": "10.48550/arxiv.1804.02767", "abstract": "We present some updates to YOLO! We made a bunch of little design changes to make it better. We also trained this new network that's pretty swell. It's a little bigger than last time but more accurate. It's still fast though, don't worry. At 320x320 YOLOv3 runs in 22 ms at 28.2 mAP, as accurate as S", "isSeed": false, "depth": 1, "venue": "arXiv (Cornell University)", "venueLevel": "预印本 · 未正式发表"}, "https://openalex.org/W3131500599": {"id": "https://openalex.org/W3131500599", "title": "Pyramid Vision Transformer: A Versatile Backbone for Dense Prediction without Convolutions", "year": 2021, "citationCount": 4690, "referenceCount": 144, "authors": "Wenhai Wang, Enze Xie, Xiang Li, Deng-Ping Fan et al.", "arxivId": "", "doi": "10.1109/iccv48922.2021.00061", "abstract": "Although convolutional neural networks (CNNs) have achieved great success in computer vision, this work investigates a simpler, convolution-free backbone network use-fid for many dense prediction tasks. Unlike the recently-proposed Vision Transformer (ViT) that was designed for image classification ", "isSeed": false, "depth": 1, "venue": "2021 IEEE/CVF International Conference on Computer Vision (ICCV)", "venueLevel": "CCF-A"}}, "edges": [{"source": "https://openalex.org/W2949650786", "target": "https://openalex.org/W1536680647", "type": "references"}, {"source": "https://openalex.org/W2949650786", "target": "https://openalex.org/W1554663460", "type": "references"}, {"source": "https://openalex.org/W2949650786", "target": "https://openalex.org/W1665214252", "type": "references"}, {"source": "https://openalex.org/W2949650786", "target": "https://openalex.org/W1533861849", "type": "references"}, {"source": "https://openalex.org/W2949650786", "target": "https://openalex.org/W1530872699", "type": "references"}, {"source": "https://openalex.org/W2592929672", "target": "https://openalex.org/W2949650786", "type": "citations"}, {"source": "https://openalex.org/W2953384591", "target": "https://openalex.org/W2949650786", "type": "citations"}, {"source": "https://openalex.org/W2279098554", "target": "https://openalex.org/W2949650786", "type": "citations"}, {"source": "https://openalex.org/W2796347433", "target": "https://openalex.org/W2949650786", "type": "citations"}, {"source": "https://openalex.org/W3131500599", "target": "https://openalex.org/W2949650786", "type": "citations"}]};
+const STATS = GRAPH_DATA.stats;
+const NODES = GRAPH_DATA.nodes;
+const EDGES = GRAPH_DATA.edges;
+document.getElementById('h-seed').textContent = STATS.seed_title.length > 18 ? STATS.seed_title.slice(0,18)+'…' : STATS.seed_title;
+document.getElementById('h-nodes').textContent = STATS.total_nodes;
+document.getElementById('h-edges').textContent = STATS.total_edges;
+document.getElementById('h-depth').textContent = STATS.max_depth_reached;
+
+// 年份 → 颜色 (绝对映射: 固定参考 2026, 距2026越近越深, 不随检索集合变化)
+const NOW_YEAR = 2026;        // 参考年份(最新 = 最深)
+const OLDEST_YEAR = 2000;     // 固定最老参考(最浅), 早于此年份 clamp 到最浅
+const YEAR_SPAN = NOW_YEAR - OLDEST_YEAR;
+
+function yearToColor(year) {
+  if (!year) return { bg: '#cbd5e1', border: '#94a3b8' };
+  // t: 0 = 最新(2026, 最深) → 1 = 最老(≤2000, 最浅)
+  const t = Math.max(0, Math.min(1, (NOW_YEAR - year) / YEAR_SPAN));
+  // HSL 蓝色 220: 亮度 32%(新,深) → 85%(老,浅), 饱和度 75%(新) → 50%(老)
+  const lightness = 32 + t * 53;
+  const saturation = 75 - t * 25;
+  return { bg: `hsl(220, ${saturation}%, ${lightness}%)`, border: `hsl(220, ${saturation}%, ${Math.max(lightness - 12, 20)}%)` };
+}
+
+function nodeColor(n) {
+  if (n.isSeed) return { bg: '#fbbf24', border: '#d97706' };
+  return yearToColor(n.year);
+}
+
+function nodeSize(n) {
+  if (n.isSeed) return 52;
+  const cc = n.citationCount || 0;
+  // 引用量越大节点越大:范围 24-72,log 缩放让差距更明显
+  return Math.max(24, Math.min(72, 24 + Math.log10(cc + 1) * 12));
+}
+
+// 等级 → 颜色 (用于详情面板徽章)
+function levelColor(level) {
+  if (!level) return { bg: '#f1f5f9', fg: '#64748b', border: '#cbd5e1' };
+  if (level.includes('CCF-A')) return { bg: '#fef3c7', fg: '#92400e', border: '#f59e0b' };
+  if (level.includes('CCF-B')) return { bg: '#dbeafe', fg: '#1e40af', border: '#3b82f6' };
+  if (level.includes('CCF-C')) return { bg: '#e0e7ff', fg: '#3730a3', border: '#6366f1' };
+  if (level.includes('SCI-Q1')) return { bg: '#dcfce7', fg: '#166534', border: '#22c55e' };
+  if (level.includes('SCI-Q2')) return { bg: '#d1fae5', fg: '#065f46', border: '#10b981' };
+  if (level.includes('预印本')) return { bg: '#fee2e2', fg: '#991b1b', border: '#ef4444' };
+  if (level.includes('未收录')) return { bg: '#f1f5f9', fg: '#64748b', border: '#cbd5e1' };
+  return { bg: '#f1f5f9', fg: '#475569', border: '#cbd5e1' };
+}
+
+function buildElements() {
+  const els = [];
+  for (const [id, n] of Object.entries(NODES)) {
+    const c = nodeColor(n);
+    const s = nodeSize(n);
+    // label: 标题截断 + 年份
+    const titleShort = n.title.length > 38 ? n.title.slice(0, 38) + '…' : n.title;
+    const label = `${titleShort}\n(${n.year || '?'})`;
+    els.push({ data: { id, title: n.title, year: n.year, citationCount: n.citationCount, referenceCount: n.referenceCount, authors: n.authors, arxivId: n.arxivId, doi: n.doi, abstract: n.abstract, venue: n.venue, venueLevel: n.venueLevel, isSeed: n.isSeed, depth: n.depth, size: s, bg: c.bg, border: c.border, label: label } });
+  }
+  const nodeIds = new Set(Object.keys(NODES));
+  let dropped = 0;
+  for (const e of EDGES) {
+    // 过滤无效边: source/target 必须都在节点里(避免被 max_total 截断的节点导致 cytoscape 崩溃)
+    if (!nodeIds.has(e.source) || !nodeIds.has(e.target)) { dropped++; continue; }
+    // 统一箭头: source 引用 target,不区分颜色
+    els.push({ data: { id: e.source + '->' + e.target, source: e.source, target: e.target } });
+  }
+  if (dropped > 0) console.warn(`[paper_graph] 丢弃 ${dropped} 条无效边(source/target 节点不在图中)`);
+  return els;
+}
+
+let cy, physicsEnabled = true;
+function initCytoscape() {
+  cy = cytoscape({
+    container: document.getElementById('cy'),
+    elements: buildElements(),
+    style: [
+      { selector: 'node', style: { 'background-color': 'data(bg)', 'border-color': 'data(border)', 'border-width': 2.5, 'width': 'data(size)', 'height': 'data(size)', 'shape': 'ellipse', 'label': 'data(label)', 'font-family': 'Inter, sans-serif', 'font-size': 10, 'font-weight': 500, 'color': '#0f172a', 'text-valign': 'bottom', 'text-halign': 'center', 'text-margin-y': 6, 'text-wrap': 'ellipsis', 'text-max-width': 130, 'text-outline-width': 2, 'text-outline-color': '#f8fafc', 'overlay-opacity': 0 } },
+      { selector: 'node[?isSeed]', style: { 'shape': 'star', 'border-width': 3.5, 'font-size': 12, 'font-weight': 700, 'color': '#92400e', 'text-outline-color': '#fffbeb' } },
+      { selector: 'edge', style: { 'width': 1.6, 'line-color': '#94a3b8', 'line-opacity': 0.45, 'target-arrow-color': '#64748b', 'target-arrow-shape': 'triangle', 'arrow-scale': 0.85, 'curve-style': 'bezier', 'overlay-opacity': 0 } },
+      { selector: 'node.hover', style: { 'border-width': 4, 'opacity': 1, 'z-index': 999 } },
+      { selector: 'edge.hover', style: { 'line-opacity': 0.85, 'width': 2.5, 'line-color': '#2563eb', 'target-arrow-color': '#2563eb' } },
+      { selector: 'node.faded', style: { 'opacity': 0.18 } },
+      { selector: 'edge.faded', style: { 'opacity': 0.06 } },
+      { selector: 'node.selected', style: { 'border-color': '#2563eb', 'border-width': 4 } },
+    ],
+    layout: { name: 'fcose', animate: 'end', animationDuration: 1200, quality: 'default', randomize: true, nodeRepulsion: 18000, idealEdgeLength: 180, edgeElasticity: 0.45, gravity: 0.25, numIter: 2500, nodeSeparation: 120, padding: 70, uniformNodeDimensions: true, fit: true },
+    wheelSensitivity: 0.2,
+  });
+
+  cy.on('mouseover', 'node', function(evt) {
+    const node = evt.target; node.addClass('hover');
+    const nb = node.closedNeighborhood();
+    cy.elements().difference(nb).addClass('faded'); nb.edges().addClass('hover');
+    const d = node.data();
+    const tip = document.getElementById('tooltip');
+    tip.innerHTML = '<div style="font-weight:600;margin-bottom:3px">' + d.title + '</div><div style="color:var(--text-muted);font-size:11px">' + (d.year || 'N/A') + ' · 被引 ' + d.citationCount + (d.venueLevel ? ' · ' + d.venueLevel : '') + '</div>';
+    tip.style.display = 'block';
+    const pos = evt.renderedPosition; const rect = document.getElementById('cy').getBoundingClientRect();
+    tip.style.left = (rect.left + pos.x + 14) + 'px'; tip.style.top = (rect.top + pos.y - 10) + 'px';
+  });
+  cy.on('mouseout', 'node', function() { cy.elements().removeClass('hover faded'); document.getElementById('tooltip').style.display = 'none' });
+  cy.on('tap', 'node', function(evt) { cy.elements().removeClass('selected'); evt.target.addClass('selected'); showDetail(evt.target.data().id) });
+  cy.on('tap', function(evt) { if (evt.target === cy) closeDetail() });
+  cy.one('layoutstop', () => { setTimeout(() => { const l = document.getElementById('loader'); l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 500) }, 300) });
+  setTimeout(() => { const l = document.getElementById('loader'); if (l.style.display !== 'none') { l.style.opacity = '0'; setTimeout(() => l.style.display = 'none', 500) } }, 4000);
+}
+
+function showDetail(id) {
+  const n = NODES[id]; if (!n) return;
+  const badge = document.getElementById('d-badge');
+  if (n.isSeed) { badge.innerHTML = '<span class="detail-badge" style="background:#fef3c7;color:#92400e;border:1px solid #f59e0b">★ SEED · 种子论文</span>' }
+  else { badge.innerHTML = '<span class="detail-badge" style="background:#dbeafe;color:#1e40af;border:1px solid #3b82f6">LAYER ' + n.depth + '</span>' }
+  document.getElementById('d-title').textContent = n.title;
+  document.getElementById('d-year').textContent = n.year || 'N/A';
+  const vr = document.getElementById('d-venue-row');
+  if (n.venue) { document.getElementById('d-venue').textContent = n.venue; vr.style.display = 'flex' } else { vr.style.display = 'none' }
+  // 等级徽章
+  const lr = document.getElementById('d-level-row');
+  const lc = levelColor(n.venueLevel);
+  document.getElementById('d-level').innerHTML = '<span class="level-badge" style="background:' + lc.bg + ';color:' + lc.fg + ';border:1px solid ' + lc.border + '">' + (n.venueLevel || '未知') + '</span>';
+  lr.style.display = 'flex';
+  document.getElementById('d-authors').textContent = n.authors || 'N/A';
+  document.getElementById('d-cited').textContent = (n.citationCount || 0).toLocaleString();
+  document.getElementById('d-refs').textContent = n.referenceCount || 0;
+  document.getElementById('d-abstract').textContent = n.abstract || '(无摘要)';
+  const links = document.getElementById('d-links'); links.innerHTML = '';
+  if (n.arxivId) links.innerHTML += '<a href="https://arxiv.org/abs/' + n.arxivId + '" target="_blank" class="btn" style="border-color:#bfdbfe;color:#2563eb">arXiv: ' + n.arxivId + ' ↗</a>';
+  if (n.doi) links.innerHTML += '<a href="https://doi.org/' + n.doi + '" target="_blank" class="btn" style="border-color:#fbcfe8;color:#db2777">DOI ↗</a>';
+  // 连接信息 (统一箭头语义)
+  const conns = document.getElementById('d-connections'); conns.innerHTML = '';
+  const refs = EDGES.filter(e => e.source === id).map(e => NODES[e.target]);
+  const citedBy = EDGES.filter(e => e.target === id).map(e => NODES[e.source]);
+  if (refs.length) { conns.innerHTML += '<div style="color:var(--accent-cyan);font-weight:600;margin-bottom:4px">引用了 ' + refs.length + ' 篇 →</div>'; refs.slice(0, 5).forEach(r => { conns.innerHTML += '<div style="color:var(--text-muted);padding-left:12px">· ' + r.title.slice(0, 45) + (r.title.length > 45 ? '…' : '') + ' (' + (r.year || '?') + ')</div>' }) }
+  if (citedBy.length) { conns.innerHTML += '<div style="color:var(--accent-3);font-weight:600;margin:6px 0 4px">被 ' + citedBy.length + ' 篇引用 ←</div>'; citedBy.slice(0, 5).forEach(r => { conns.innerHTML += '<div style="color:var(--text-muted);padding-left:12px">· ' + r.title.slice(0, 45) + (r.title.length > 45 ? '…' : '') + ' (' + (r.year || '?') + ')</div>' }) }
+  if (!refs.length && !citedBy.length) conns.innerHTML = '<div style="color:var(--text-muted)">无连接</div>';
+  document.getElementById('detail-panel').classList.add('open');
+}
+
+function closeDetail() { document.getElementById('detail-panel').classList.remove('open'); cy.elements().removeClass('selected') }
+function cyFit() { cy.animate({ fit: { eles: cy.elements(), padding: 60 }, duration: 600 }) }
+function togglePhysics() { physicsEnabled = !physicsEnabled; const btn = document.getElementById('btn-physics'); if (physicsEnabled) { cy.layout({ name: 'fcose', animate: true, animationDuration: 900, quality: 'default', randomize: false, nodeRepulsion: 18000, idealEdgeLength: 180, gravity: 0.25, numIter: 2000, nodeSeparation: 120, uniformNodeDimensions: true, fit: false }).run(); btn.style.color = '' } else { btn.style.color = 'var(--text-muted)' } }
+function exportJSON() { const blob = new Blob([JSON.stringify(GRAPH_DATA, null, 2)], { type: 'application/json' }); const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = 'paper_graph.json'; a.click() }
+document.getElementById('search-input').addEventListener('input', (e) => { const q = e.target.value.toLowerCase().trim(); if (!q) { cy.elements().removeClass('faded'); return } const matched = cy.nodes().filter(n => n.data('title').toLowerCase().includes(q)); cy.elements().addClass('faded'); matched.removeClass('faded'); matched.neighborhood().removeClass('faded'); if (matched.length) cy.animate({ center: { eles: matched }, zoom: 1.2, duration: 500 }) });
+document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDetail() });
+// 全局错误处理 + 兜底隐藏 loader
+window.addEventListener('error', function(e) { console.error('PaperGraph error:', e.message); hideLoader() });
+function hideLoader() { const l = document.getElementById('loader'); if (l && l.style.display !== 'none') { l.style.opacity = '0'; setTimeout(() => { l.style.display = 'none' }, 400) } }
+setTimeout(hideLoader, 5000);
+function safeInit() { if (typeof cytoscape === 'undefined') { console.error('Cytoscape.js not loaded'); document.getElementById('loader').innerHTML = '<div style="color:#db2777;font-size:14px;text-align:center;padding:20px">Cytoscape.js 加载失败<br><span style="font-size:12px;color:#475569">请检查网络或用 Chrome/Edge 打开</span></div>'; return } if (typeof cytoscape('layout','fcose') === 'undefined' && !window.fcoseRegistered) { console.warn('fCoSE 插件未加载,回退到 cose 布局') } try { initCytoscape() } catch (e) { console.error('[initCytoscape失败]', e.stack || e.message || e); hideLoader() } }
+if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', safeInit) } else { safeInit() }
+</script>
+</body>
+</html>
